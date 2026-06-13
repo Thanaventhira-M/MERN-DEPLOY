@@ -4,129 +4,69 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 
 const app = express();
-app.use(express.json())
-app.use(cors())
 
-// app.get('/',(req,res)=>{
-//     res.send("Hello world")
-// });
+app.use(express.json());
+app.use(cors());
 
-
-//Creatring scheema;
-
-
+// Schema
 const todoSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    description: { type: String, required: true }
+});
 
-    title: {
-        required: true,
-        type: String
-    },
-    description: {
-        required: true,
-        type: String
-    }
-})
+const todoModel = mongoose.model('Todo', todoSchema);
 
-const todoModel = mongoose.model('Todo', todoSchema)
-
+// MongoDB connect
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB Connected Successfully");
-  })
-  .catch((err) => {
-    console.log("MongoDB Connection Error:", err);
-  });
+  .then(() => console.log("MongoDB Connected Successfully"))
+  .catch((err) => console.log(err));
 
-// let todos = [];
+// Routes
 app.post('/add', async (req, res) => {
-
-    const { title, description } = req.body;
-    // const newTodo = {
-    //     id: todos.length + 1,
-    //     title,
-    //     description
-    // };
-    // todos.push(newTodo);
-    // console.log(todos);
-
     try {
-        const newTodo = todoModel({ title, description });
-        await newTodo.save()
+        const newTodo = new todoModel(req.body);
+        await newTodo.save();
         res.status(200).json(newTodo);
     } catch (err) {
-        console.log(err);
-
-        res.status(500).json({ message: err.message })
-
+        res.status(500).json({ message: err.message });
     }
-
-
-
-})
-
+});
 
 app.get("/getAll", async (req, res) => {
-
     try {
         const todos = await todoModel.find();
         res.json(todos);
     } catch (err) {
-        console.log(err);
         res.status(500).json({ message: err.message });
     }
-
-})
+});
 
 app.put('/update/:id', async (req, res) => {
     try {
-
-        const { title, description } = req.body;
-
-        const id = req.params.id;
-
-        const updatedTodo = await todoModel.findByIdAndUpdate(
-            id,
-            { title, description },
+        const updated = await todoModel.findByIdAndUpdate(
+            req.params.id,
+            req.body,
             { new: true }
         );
 
-        if (!updatedTodo) {
+        if (!updated) {
             return res.status(404).json({ message: "Todo Not Found" });
         }
 
-        res.json(updatedTodo)
+        res.json(updated);
     } catch (err) {
-        console.log(err);
-
-        res.status(500).json({ message: err.message })
-
-
+        res.status(500).json({ message: err.message });
     }
+});
 
-
-})
-
-
-app.delete("/delete/:id",async(req,res)=>{
-    try{
-           const id = req.params.id;
-
-    await todoModel.findByIdAndDelete(id);
-    res.status(201).end()
-
-    }catch (err){
-        console.log(err);
-        res.status(500).json({message:err.message});
-        
-
+app.delete("/delete/:id", async (req, res) => {
+    try {
+        await todoModel.findByIdAndDelete(req.params.id);
+        res.status(200).json({ message: "Deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
- 
+});
 
-})
-
-const port = process.env.PORT || 8000;
-
-app.listen(port, () => {
-    console.log("Server is Listening to port" + port);
-
-})
+// IMPORTANT FOR VERCEL
+module.exports = app;
